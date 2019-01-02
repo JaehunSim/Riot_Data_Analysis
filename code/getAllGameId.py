@@ -8,24 +8,35 @@ warnings.filterwarnings("ignore")
 
 def getDataFromURL(URL):
     response = requests.get(URL)
-    return response.json()
-
-home = str(Path.home())
-PATH = home + "\\Desktop\\컴공 졸프\\riot_data_analysis\\"
+    time.sleep(0.8)
+    #correct retrieval
+    if len(str(response.json())) > 1000:
+        return response.json()
+    else:
+        while(response.json()["status"]["status_code"]==429):
+            time.sleep(10)
+            response = requests.get(URL)
+            time.sleep(0.8)
+            if len(str(response.json())) > 1000:
+                return response.json()
+        time.sleep(3)
+        response = requests.get(URL)
+        return response.json()
+    
+import sys,os
+desktop = os.path.join(os.path.join(os.environ['USERPROFILE']), 'Desktop')
+PATH = desktop+"\\riot_data_analysis\\"
+sys.path.append(PATH+'code')
 APIKEY = "RGAPI-0416bf72-4fe9-4fd2-b6b5-057237db2a2d"
 
-
-region = ["KR","NA1","EUW1","EUN1"]
-gameType = ["RANKED_SOLO_5x5","RANKED_FLEX_SR"]
-tier = ["challenger", "master"]
-
+#region,gameType,tier = region[0],gameType[0],tier[0]
 def getAllGameId(region, gameType, tier):
     #get accountId from best_summonerV2 files
     filename = region + "_"+ gameType + "_"+ tier+ "List.xlsx"
     data = pd.read_excel(PATH+"DB_file\\best_summonerV2\\"+filename)
     
     #get gameIdDB
-    dataGameId = pd.read_excel(PATH+"DB_file\\gameIdDB2.xlsx")
+    dataGameId = pd.read_excel(PATH+"DB_file\\gameIdDB.xlsx")
 
     #tracking accountId_index
     count = 0
@@ -40,21 +51,14 @@ def getAllGameId(region, gameType, tier):
         existCount = 0
         
         URL = "https://"+region+".api.riotgames.com/lol/match/v3/matchlists/by-account/"+str(accountId)+"?api_key="+APIKEY
-        #try data parsing, when if fail, skip if statement(go to next accountId)
-        success = False
+        
         try:
             dataFront = getDataFromURL(URL)
-            time.sleep(0.8)
-            success = True
-        except:
-            #data retrival failed; success = False
-            pass
-        if success:
             endIndex = dataFront["totalGames"]
             for matches in dataFront["matches"]:
                 if matches["gameId"] not in dataGameId["gameId"].values:
-                    if count2 % 30 == 0:
-                        print("region, gameType, tier, accountId, count2: ", region, gameType, tier, accountId, count2)
+                    #if count2 % 30 == 0:
+                        #print("region, gameType, tier, accountId, count2: ", region, gameType, tier, accountId, count2)
                     count2 += 1
                     #save gameId in temp, add it to dataGameId.
                     temp = pd.Series([region,gameType,matches["gameId"]])
@@ -83,8 +87,9 @@ def getAllGameId(region, gameType, tier):
                     pass
                 if success2:
                     for matches in dataBack["matches"]:            
-                        if matches["gameId"] not in dataGame 
-                                print("region, gameType, tier, accountId, count2: ", region, gameType, tier, accountId, count2)
+                        if matches["gameId"] not in dataGameId["gameId"]:
+                            #if count2 % 30 == 0:
+                                #print("region, gameType, tier, accountId, count2: ", region, gameType, tier, accountId, count2)
                             count2+=1 
                             #save gameId in temp, add it to dataGameId.
                             temp = pd.Series([region,gameType,matches["gameId"]])
@@ -94,18 +99,24 @@ def getAllGameId(region, gameType, tier):
                             if existCount % 20 == 0:
                                 print("exist")
                             existCount += 1
+        except:
+            pass
     #for the final data, save it.
-    dataGameId.to_excel(PATH+"DB_file\\gameIdDB2.xlsx", index=None, encoding="euc-kr")
-"""
-getAllGameId(region[0],gameType[0],tier[0])
-getAllGameId(region[0],gameType[1],tier[0])
-getAllGameId(region[1],gameType[0],tier[0])
-getAllGameId(region[1],gameType[1],tier[0])
-getAllGameId(region[2],gameType[0],tier[0])
-getAllGameId(region[2],gameType[1],tier[0])
-getAllGameId(region[3],gameType[0],tier[0])
-getAllGameId(region[3],gameType[1],tier[0])
-"""
+    dataGameId.to_excel(PATH+"DB_file\\gameIdDB.xlsx", index=None, encoding="euc-kr")
 
+
+def main():
+#    region = ["KR","NA1","EUN1","EUW1"]
+    region = ["EUN1","EUW1"]
+    gameType = ["RANKED_SOLO_5x5","RANKED_FLEX_SR"]
+    tier = ["challenger", "master"]
+    for r in region:
+        for g in gameType:
+            for t in tier:
+                if r == "EUN1":
+                    if (g,t) != ("RANKED_FLEX_SR", "master"):
+                        continue
+                print(r,g,t)
+                getAllGameId(r,g,t)
 
 

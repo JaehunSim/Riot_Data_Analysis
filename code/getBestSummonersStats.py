@@ -4,18 +4,39 @@ import pandas as pd
 import os
 import datetime
 import time
+from pathlib import Path
 
 import warnings
 warnings.filterwarnings("ignore")
 
 APIKEY = "RGAPI-0416bf72-4fe9-4fd2-b6b5-057237db2a2d"
 LOCALE = "ko_KR"
-PATH = "C:\\Users\\tapu1\\Desktop\\컴공 졸프\\riot_data_analysis"
-
+import sys
+desktop = os.path.join(os.path.join(os.environ['USERPROFILE']), 'Desktop')
+PATH = desktop+"\\riot_data_analysis\\"
+sys.path.append(PATH+'code')
 #URL에서 json파일 형식 받아오기
 def getDataFromURL(URL):
     response = requests.get(URL)
-    return response.json()
+    #time.sleep(0.8)
+    count = 0
+    #correct retrieval
+    if len(str(response.json())) > 1000:
+        return response.json()
+    #if rate limit exceeds, then try 5 more times, for each time sleep 10 secs.
+    else:
+        while(response.json()["status"]["status_code"]==429):
+            if count >= 10:
+                return "error"
+            time.sleep(15)
+            response = requests.get(URL)
+            time.sleep(0.8)
+            if len(str(response.json())) > 1000:
+                return response.json()
+            count +=1
+        time.sleep(3)
+        response = requests.get(URL)
+        return response.json()
 
 def create_tier_list(region,gameType,tier):
     print(region,gameType,tier)
@@ -53,6 +74,7 @@ def create_tier_list(region,gameType,tier):
 def main():
     regionList = ["KR","NA1","EUN1","EUW1"]
     for region in regionList:
+        print("start")
         create_tier_list(region,"RANKED_SOLO_5x5","challenger")
         create_tier_list(region,"RANKED_SOLO_5x5","master")
         create_tier_list(region,"RANKED_FLEX_SR","challenger")
